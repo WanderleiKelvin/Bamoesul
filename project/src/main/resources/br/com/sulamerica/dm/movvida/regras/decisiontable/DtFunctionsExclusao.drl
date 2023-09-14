@@ -1,0 +1,229 @@
+package br.com.sulamerica.dm.movvida.regras.decisiontable;
+
+import br.com.sulamerica.dm.movvida.model.Movimentacao;
+import br.com.sulamerica.dm.movvida.model.MovimentacaoExclusao;
+import br.com.sulamerica.dm.movvida.model.Empresa;
+import java.util.List;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.time.DateTimeException;
+import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
+function List<LocalDate> buildExclusaoDataValidaList(Empresa emp, Movimentacao mov, MovimentacaoExclusao mex){
+    List<LocalDate> dataValidaList = new ArrayList<LocalDate>();
+
+    String carteira = emp.getCarteira();
+
+    System.out.println("NORMAL============================================================================================");
+
+    LocalDate vigenciaEmpresa = emp.getDataInicioVigencia();
+    int vigenciaDayOfMonth = vigenciaEmpresa.getDayOfMonth();
+
+    // data exclusao retroativa
+
+    if(mex.isPermitirExclusaoRetroativa() || mex.getCodigoMotivo() == 56){
+
+        if("administrado".equals(carteira) || emp.isProRata() || mex.getCodigoMotivo() == 56){
+            LocalDate fimVigenciaMesAtual = mov.getHoje().minusDays(mex.getPeriodoPermitidoExclusaoEmDias());
+            for(int i = 0; i < mex.getPeriodoPermitidoExclusaoEmDias(); i++){
+                dataValidaList.add(fimVigenciaMesAtual);
+                fimVigenciaMesAtual = fimVigenciaMesAtual.plusDays(1);
+            }
+        }else{
+            LocalDate fimVigenciaMesAtual = mov.getHoje().minusDays(mex.getPeriodoPermitidoExclusaoEmDias());
+            fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(fimVigenciaMesAtual, vigenciaDayOfMonth);
+            dataValidaList.add(fimVigenciaMesAtual);
+            long count = Duration.between(fimVigenciaMesAtual.atStartOfDay(), mov.getHoje().atStartOfDay()).toDays();
+            while (count > 0 && count <= mex.getPeriodoPermitidoExclusaoEmDias()) {
+                // adicionando 2 dias para pegar a proxima vigencia
+                fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(fimVigenciaMesAtual.plusDays(2), vigenciaDayOfMonth);
+                count = Duration.between(fimVigenciaMesAtual.atStartOfDay(),
+                        mov.getHoje().atStartOfDay()).toDays();
+                if(count > 0 && count <= mex.getPeriodoPermitidoExclusaoEmDias()){
+                    dataValidaList.add(fimVigenciaMesAtual);
+                }
+            }
+        }
+    }
+
+    // data exclusao para frente
+
+
+    if("administrado".equals(carteira) || emp.isProRata() || mex.getCodigoMotivo() == 56) {
+        LocalDate fimVigenciaMesAtual = mov.getHoje();
+        for (int i = 0; i < mex.getPeriodoPermitidoExclusaoEmDias(); i++) {
+            dataValidaList.add(fimVigenciaMesAtual);
+            fimVigenciaMesAtual = fimVigenciaMesAtual.plusDays(1);
+        }
+    }else{
+        LocalDate fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(mov.getHoje(), vigenciaDayOfMonth);
+        dataValidaList.add(fimVigenciaMesAtual);
+        long count = Duration.between(mov.getHoje().atStartOfDay(), fimVigenciaMesAtual.atStartOfDay()).toDays();
+
+        while (count <= mex.getPeriodoPermitidoExclusaoEmDias()) {
+            // adicionando 2 dias para pegar a proxima vigencia
+            fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(fimVigenciaMesAtual.plusDays(2), vigenciaDayOfMonth);
+            count = Duration.between(mov.getHoje().atStartOfDay(),
+                    fimVigenciaMesAtual.atStartOfDay()).toDays();
+            if(count <= mex.getPeriodoPermitidoExclusaoEmDias()){
+                dataValidaList.add(fimVigenciaMesAtual);
+            }
+        }
+    }
+    return dataValidaList;
+}
+
+function List<LocalDate> buildExclusaoDataValidaListRN412(Movimentacao mov, MovimentacaoExclusao mex) {
+    List<LocalDate> dataValidaListRN412 = new ArrayList<LocalDate>();
+    
+    System.out.println("RN412=============================================================================================");
+   
+    LocalDate hoje = LocalDate.from(mov.getHoje().atStartOfDay());
+    
+    int indexInicial = 0;
+    do {
+        indexInicial = mex.getDatasUteisRN412().indexOf(hoje);
+        if (indexInicial == -1)
+            hoje = hoje.minusDays(1);
+
+    } while (indexInicial <= -1);
+
+    int indexFinal = indexInicial - mex.getPeriodoPermitidoExclusaoEmDiasRN412();
+     
+     DayOfWeek dayOfWeek = mov.getHoje().getDayOfWeek();
+	 if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
+		 dataValidaListRN412.add(mov.getHoje());
+	 }
+	 
+    while (indexInicial > indexFinal) {
+        LocalDate dataUtil = mex.getDatasUteisRN412().get(indexInicial);
+		if (!dataValidaListRN412.contains(dataUtil)) {
+			dataValidaListRN412.add(dataUtil);
+		}
+        indexInicial--;
+    }        
+    
+    return dataValidaListRN412;       
+}
+
+function List<LocalDate> buildExclusaoDataValidaListObito(Movimentacao mov, MovimentacaoExclusao mex, Empresa emp){
+        List<LocalDate> dataValidaListObito = new ArrayList<LocalDate>();
+        
+        String carteira = emp.getCarteira();
+
+        LocalDate vigenciaEmpresa = emp.getDataInicioVigencia();
+        int vigenciaDayOfMonth = vigenciaEmpresa.getDayOfMonth();
+        
+        System.out.println("OBITO=============================================================================================");
+        
+		// data exclusao retroativa
+		LocalDate fimVigenciaMesAtual = mov.getHoje();
+		for (int i = 1; i < mex.getPeriodoPermitidoExclusaoEmDiasObito(); i++) {
+			dataValidaListObito.add(fimVigenciaMesAtual);
+			fimVigenciaMesAtual = fimVigenciaMesAtual.minusDays(1);
+		}
+		
+		// data exclusao para frente
+		 if("administrado".equals(carteira)) {	            
+			 fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(mov.getHoje(), vigenciaDayOfMonth);
+	            dataValidaListObito.add(fimVigenciaMesAtual);
+	            LocalDate hoje = mov.getHoje();
+	            while (fimVigenciaMesAtual.minusDays(1).isAfter(hoje)) {
+	            	hoje = hoje.plusDays(1);
+	            	dataValidaListObito.add(hoje);
+	            }
+	        }else{
+	            fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(mov.getHoje(), vigenciaDayOfMonth);
+	            dataValidaListObito.add(fimVigenciaMesAtual);
+	            long count = Duration.between(mov.getHoje().atStartOfDay(), fimVigenciaMesAtual.atStartOfDay()).toDays();
+
+	            while (count <= mex.getPeriodoPermitidoExclusaoEmDias()) {
+	                // adicionando 2 dias para pegar a proxima vigencia
+	                fimVigenciaMesAtual = buildExclusaoProximoFimVigenciaMes(fimVigenciaMesAtual.plusDays(2), vigenciaDayOfMonth);
+	                count = Duration.between(mov.getHoje().atStartOfDay(),
+	                        fimVigenciaMesAtual.atStartOfDay()).toDays();
+	                if(count <= mex.getPeriodoPermitidoExclusaoEmDias()){
+	                	dataValidaListObito.add(fimVigenciaMesAtual);
+	                }
+	            }
+	        }
+		
+        return dataValidaListObito;
+    }
+
+function boolean isExclusaoDataValida(MovimentacaoExclusao mex){
+    boolean dataValida = false;
+    LocalDate data = mex.getDataExclusao();
+    dataValida = mex.getDataExclusaoValidaList().contains(data);
+    System.out.println("dataValida: " + dataValida);
+    return dataValida;
+}
+
+function boolean isExclusaoDataValidaRN412(MovimentacaoExclusao mex){
+    boolean dataValida = false;
+        
+    LocalDate data = mex.getDataExclusao();
+    List<LocalDate> lstDataValidasRn412 = mex.getDataExclusaoValidaRN412List();
+        
+    if (lstDataValidasRn412 != null && lstDataValidasRn412.size() > 0) {
+        int tam = lstDataValidasRn412.size();
+        LocalDate dataInicial = lstDataValidasRn412.get(tam-1);
+        LocalDate dataFinal = lstDataValidasRn412.get(0);
+        dataValida = ((data.equals(dataInicial) || data.isAfter(dataInicial)) && (data.equals(dataFinal) || data.isBefore(dataFinal)));
+    }
+    System.out.println("dataValida: " + dataValida);
+    return dataValida;
+}
+
+function boolean isExclusaoDataValidaObito(MovimentacaoExclusao mex){
+    boolean dataValida = false;
+    LocalDate data = mex.getDataExclusao();
+    dataValida = mex.getDataExclusaoValidaObitoList().contains(data);
+    System.out.println("dataValida: " + dataValida);
+    return dataValida;
+}
+
+function boolean isExclusaoObitoRetroativo(MovimentacaoExclusao mex, Movimentacao mov) {
+    if (mex.getDataExclusao() != null && mex.getDataExclusao().isBefore(mov.getHoje())) {
+        System.out.println("isExclusaoObitoRetroativo: true");
+        return true;
+    }
+     System.out.println("isExclusaoObitoRetroativo: true");
+    return false;
+}
+
+function boolean isExclusaoObitoFuturo(MovimentacaoExclusao mex, Movimentacao mov) {
+    if (mex.getDataExclusao() != null && mex.getDataExclusao().isAfter(mov.getHoje())) {
+        System.out.println("isExclusaoObitoFuturo: true");
+        return true;
+    }
+     System.out.println("isExclusaoObitoFuturo: false");
+    return false;
+}
+
+function LocalDate buildExclusaoProximoFimVigenciaMes(LocalDate actualDate, int vigenciaDayOfMonth) {
+    LocalDate proximaVigencia;
+    try {
+        proximaVigencia = actualDate.withDayOfMonth(vigenciaDayOfMonth);
+    } catch (DateTimeException e) {
+        proximaVigencia = getExclusaoLastDayOfMonth(actualDate, vigenciaDayOfMonth);
+    }
+    if(actualDate.isAfter(proximaVigencia)){
+        proximaVigencia = proximaVigencia.plusMonths(1);
+    }
+    // caso vigencia for dia 31
+    if(proximaVigencia.lengthOfMonth() < vigenciaDayOfMonth){
+        return proximaVigencia;
+    }
+    return proximaVigencia.minusDays(1);
+}
+
+function LocalDate getExclusaoLastDayOfMonth(LocalDate date, int vigenciaDayOfMonth) {
+    try {
+        return date.withDayOfMonth(vigenciaDayOfMonth - 1);
+    } catch (DateTimeException e) {
+        return getExclusaoLastDayOfMonth(date, vigenciaDayOfMonth - 1);
+    }
+}

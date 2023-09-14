@@ -1,0 +1,138 @@
+package br.com.sulamerica.dm.movvida.regras.decisiontable;
+
+import br.com.sulamerica.dm.movvida.model.Movimentacao;
+import br.com.sulamerica.dm.movvida.model.MovimentacaoExclusao;
+import br.com.sulamerica.dm.movvida.model.Empresa;
+import java.util.List;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
+// ===== Inicio de codigos para DM =====
+function List<LocalDate> buildAlteracaoPlanoDataValidaList(Empresa emp, Movimentacao mov, MovimentacaoAlteracaoPlano map){
+    List<LocalDate> dataValidaList = new ArrayList<LocalDate>();
+
+    String carteira = emp.getCarteira();
+ 
+    System.out.println("============================================================================================");
+
+    LocalDate vigenciaEmpresa = emp.getDataInicioVigencia();
+    int vigenciaDayOfMonth = vigenciaEmpresa.getDayOfMonth();
+    LocalDate vigenciaAniversarioApolice = null;
+    if (carteira.equals("adesao")) {
+    	vigenciaAniversarioApolice = getDataVigenciaAniversarioAlteracaoPlano(emp.getDataInicioVigencia(), mov.getHoje());
+    } else {
+    	vigenciaAniversarioApolice = getDataVigenciaAniversarioAlteracaoPlano(emp.getDataInicioVigenciaEmpresaPrincipal(), mov.getHoje());
+    }
+    
+   if (map.isPermiteAlteracaoPlanoQualquerMomento()) {
+		if (carteira.equals("administrado")) {
+			System.out.println("Permite Alteracao Plano Qualquer Momento administrado");
+			LocalDate datasPermitidas = mov.getHoje().minusDays(map.getPeriodoPermitidoRegMovAlteracaoPlano());
+			for (int i = 0; i < map.getPeriodoPermitidoAposImplantacaoEmDias(); i++) {
+				dataValidaList.add(datasPermitidas);
+				datasPermitidas = datasPermitidas.plusDays(1);
+			}
+		} else {
+			System.out.println("Permite Alteracao Plano Qualquer Momento");
+			dataValidaList.add(getProximaVigenciaAlteracaoPlano(mov.getHoje(), vigenciaDayOfMonth));
+			dataValidaList.add(getUltimaVigenciaAlteracaoPlano(mov.getHoje(), vigenciaDayOfMonth));
+		}
+	//Valida 60 dias da implantacao 
+	} else if (validaDiasAposImplantacaoAlteracaoPlano(vigenciaEmpresa, map, mov.getHoje()) && !carteira.equals("adesao")) {
+		LocalDate datasPermitidas = vigenciaEmpresa;
+		for (int i = 0; i < map.getPeriodoPermitidoAposImplantacaoEmDias(); i++) {
+			dataValidaList.add(datasPermitidas);
+			datasPermitidas = datasPermitidas.plusDays(1);
+		}
+		System.out.println("Valida 60 dias da implantacao");
+	// Aniversario apolice
+	} else if (validaAniversarioApoliceAlteracaoPlano(vigenciaAniversarioApolice, map, mov.getHoje())) {			
+		dataValidaList.add(vigenciaAniversarioApolice);
+		System.out.println("Aniversario apolice");
+	}			
+    return dataValidaList;
+}
+
+function LocalDate getProximaVigenciaAlteracaoPlano(LocalDate actualDate, int vigenciaDayOfMonth) {
+    LocalDate nextDate = actualDate.plusMonths(1);
+    try {
+        return nextDate.withDayOfMonth(vigenciaDayOfMonth);
+    } catch (DateTimeException e) {
+        return getLastDayOfMonthAlteracaoPlano(nextDate, vigenciaDayOfMonth);
+    }
+}
+
+function LocalDate getUltimaVigenciaAlteracaoPlano(LocalDate actualDate, int vigenciaDayOfMonth) {
+    LocalDate nextDate = actualDate.minusMonths(1);
+    try {
+        return nextDate.withDayOfMonth(vigenciaDayOfMonth);
+    } catch (DateTimeException e) {
+        return getLastDayOfMonthAlteracaoPlano(nextDate, vigenciaDayOfMonth);
+    }
+}
+
+function LocalDate getLastDayOfMonthAlteracaoPlano(LocalDate date, int vigenciaDayOfMonth) {
+    try {
+        return date.withDayOfMonth(vigenciaDayOfMonth - 1);
+    } catch (DateTimeException e) {
+        return getLastDayOfMonthAlteracaoPlano(date, vigenciaDayOfMonth - 1);
+    }
+}
+
+function boolean validaDiasAposImplantacaoAlteracaoPlano(LocalDate dataVigencia, MovimentacaoAlteracaoPlano map, LocalDate hoje) {		
+	long qtdeDias = ChronoUnit.DAYS.between(dataVigencia, hoje);
+	if (qtdeDias <= map.getPeriodoPermitidoAposImplantacaoEmDias()) {
+		return true;
+	}
+	return false;
+}
+
+function boolean validaAniversarioApoliceAlteracaoPlano(LocalDate dataVigencia, MovimentacaoAlteracaoPlano map, LocalDate hoje) {				
+	long qtdeDias = ChronoUnit.DAYS.between(hoje, dataVigencia);
+	if (qtdeDias <= map.getPeriodoPermitidoRegMovAlteracaoPlano()) {
+		return true;
+	}
+	return false;
+}
+
+function LocalDate getDataVigenciaAniversarioAlteracaoPlano(LocalDate dataVigencia, LocalDate hoje) {
+	LocalDate proximaVigencia = null;
+	int diaHoje = hoje.getDayOfMonth();
+	int mesHoje = hoje.getMonthValue();
+	int diaVigencia = dataVigencia.getDayOfMonth();
+	int mesVigencia = dataVigencia.getMonthValue();
+	
+	if (mesVigencia == mesHoje) {
+		if (diaVigencia == diaHoje) {
+			proximaVigencia = hoje;
+		} else if (diaVigencia > diaHoje) {
+			proximaVigencia = dataVigencia.withYear(hoje.getYear());
+		} else {
+			proximaVigencia = dataVigencia.withYear(hoje.getYear() + 1);
+		}
+	} else if (mesVigencia > mesHoje) {
+		proximaVigencia = dataVigencia.withYear(hoje.getYear());
+	} else {
+		proximaVigencia = dataVigencia.withYear(hoje.getYear() + 1);
+	}		
+	return proximaVigencia;
+}   
+
+function boolean isAlteracaoPlanoDataValida(MovimentacaoAlteracaoPlano map){
+    boolean dataValida = false;
+    LocalDate data = map.getDataAlteracaoPlano();
+    dataValida = map.getDataAlteracaoPlanoValidaList().contains(data);
+    System.out.println("dataValida: " + dataValida);
+    return dataValida;
+}
+
+function boolean validaEmpresaRecemImplantada(Empresa emp, Movimentacao mov, MovimentacaoAlteracaoPlano map) {
+	String carteira = emp.getCarteira();
+	LocalDate vigenciaEmpresa = emp.getDataInicioVigencia();
+	return validaDiasAposImplantacaoAlteracaoPlano(vigenciaEmpresa, map, mov.getHoje())
+			&& !carteira.equals("adesao");
+}
+// ===== Fim de codigos para DM =====

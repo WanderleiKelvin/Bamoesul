@@ -1,0 +1,181 @@
+package br.com.sulamerica.dm.movvida.regras.decisiontable;
+
+
+import br.com.sulamerica.dm.movvida.model.Movimentacao;
+import br.com.sulamerica.dm.movvida.model.Empresa;
+import java.util.List;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
+function List buildDataAdesaoValidaList(Empresa emp, Movimentacao mov){
+    
+    List<LocalDate> dataAdesaoValidaList = new ArrayList<LocalDate>();
+
+    String carteira = emp.getCarteira();
+
+    System.out.println("============================================================================================");
+    System.out.println(carteira + " dataAdmissao: " + mov.getDataAdmissao());
+    System.out.println(carteira + " dataAdesao: " + mov.getDataAdesao());
+    if(!mov.isTitular()){
+        System.out.println(carteira + " dataEvento: " + mov.getDataEvento());
+    }
+
+    if ("administrado".equals(carteira)) {
+
+        buildDataAdesaoValidaListAdministrado(dataAdesaoValidaList, mov);
+
+    } else {
+
+        buildDataAdesaoValidaListPadrao(dataAdesaoValidaList, mov, emp.getDataInicioVigencia());
+
+    }
+    return dataAdesaoValidaList;
+}
+
+
+function boolean isDataAdesaoValida(Empresa emp, Movimentacao mov){
+    boolean dataAdesaoValida = false;
+    LocalDate dataAdesao = mov.getDataAdesao();
+    dataAdesaoValida = mov.getDataAdesaoValidaList().contains(dataAdesao);
+    System.out.println("dataAdesaoValida: " + dataAdesaoValida);
+    return dataAdesaoValida;
+}
+
+function boolean isGerarCarencia(Empresa emp, Movimentacao mov){
+    String carteira = emp.getCarteira();
+    if ("empresarial".equals(carteira) || "pme".equals(carteira)) {
+        if("saude".equals(mov.getProduto())){
+            int periodoIsencaoCarencia = mov.getPeriodoIsencaoCarencia();
+            LocalDate dataBase = getDataBase(mov);
+            LocalDate dataAdesao = mov.getDataAdesao();
+            long diferencaDias = Duration.between(dataBase.atStartOfDay(),
+                    dataAdesao.atStartOfDay()).toDays();
+            return (periodoIsencaoCarencia - diferencaDias < 0);
+        }
+    }
+    return false;
+}
+
+function void buildDataAdesaoValidaListPadrao(
+        List dataAdesaoValidaList, Movimentacao mov, LocalDate dataInicioVigenciaEmpresa) {
+
+    LocalDate dataBase = getDataBase(mov);
+
+    LocalDate now = mov.getHoje();
+    System.out.println("dataInicioVigenciaEmpresa: " + dataInicioVigenciaEmpresa);
+    int vigenciaDayOfMonth = dataInicioVigenciaEmpresa.getDayOfMonth();
+    long between = Duration.between(dataBase.atStartOfDay(),
+            now.atStartOfDay()).toDays();
+    LocalDate actualDate;
+    if (between <= mov.getPeriodoIsencaoCarencia()) {
+        actualDate = dataBase;
+        dataAdesaoValidaList.add(actualDate);
+    }else{
+        dataBase = now;
+        actualDate = now;
+    }
+    if(vigenciaDayOfMonth > actualDate.getDayOfMonth()){
+        try {
+            actualDate = actualDate.withDayOfMonth(vigenciaDayOfMonth);
+        } catch (DateTimeException e) {
+            actualDate = getLastDayOfMonth(actualDate, vigenciaDayOfMonth);
+        }
+        dataAdesaoValidaList.add(actualDate);
+    }
+    LocalDate nextDate = getNextDate(actualDate, vigenciaDayOfMonth);
+    long count = Duration.between(dataBase.atStartOfDay(),
+            nextDate.atStartOfDay()).toDays();
+
+    while (count <= mov.getPeriodoIsencaoCarencia()) {
+        dataAdesaoValidaList.add(nextDate);
+        actualDate = nextDate;
+        nextDate = getNextDate(actualDate, vigenciaDayOfMonth);
+        count = Duration.between(dataBase.atStartOfDay(),
+                nextDate.atStartOfDay()).toDays();
+    }
+    
+    if (mov.getDataNascimento() != null) {
+        long betweenRN = Duration.between(mov.getDataNascimento().atStartOfDay(),
+                mov.getHoje().atStartOfDay()).toDays();
+        
+        if (betweenRN <= mov.getPeriodoCarenciaRN()) {
+        	buildDataAdesaoValidaListRN(dataAdesaoValidaList, mov);
+        }
+    }
+
+    System.out.println("Padrao buildDataAdesaoValidaList " + dataAdesaoValidaList);
+}
+
+function LocalDate getDataBase(Movimentacao mov) {
+    if(mov.isTitular()){
+        return mov.getDataAdmissao();
+    }else{
+        LocalDate dataAdmissao = mov.getDataAdmissao();
+        LocalDate now = mov.getHoje();
+        long between = Duration.between(dataAdmissao.atStartOfDay(),
+                now.atStartOfDay()).toDays();
+        
+        //if(mov.getDataEvento().isAfter(mov.getDataAdmissao())) {
+        //    	return  mov.getDataEvento();
+        //} else 
+        if (between <= mov.getPeriodoIsencaoCarencia()) {
+            return mov.getDataAdmissao();
+        } else {
+            return mov.getDataEvento();
+        }
+    }
+}
+
+function void buildDataAdesaoValidaListAdministrado(
+        List dataAdesaoValidaList, Movimentacao mov) {
+
+    int periodoIsencaoCarencia = mov.getPeriodoIsencaoCarencia();
+    LocalDate dataAdesaoValidaInicio = mov.getHoje().minus(periodoIsencaoCarencia,
+            ChronoUnit.DAYS);
+    LocalDate dataAdesaoValidaFinal = mov.getHoje().plus(periodoIsencaoCarencia,
+            ChronoUnit.DAYS);
+    LocalDate lastDay = dataAdesaoValidaInicio;
+    while(!dataAdesaoValidaFinal.isBefore(lastDay)){
+        dataAdesaoValidaList.add(lastDay);
+        lastDay = lastDay.plus(1, ChronoUnit.DAYS);
+    }
+    System.out.println("Administrado buildDataAdesaoValidaList " + dataAdesaoValidaList);
+}
+
+function void buildDataAdesaoValidaListRN(List dataAdesaoValidaList, Movimentacao mov) {
+    int periodoCarenciaRN = mov.getPeriodoCarenciaRN();
+    LocalDate dataAdesaoValidaInicio = mov.getDataNascimento();
+    LocalDate dataAdesaoValidaFinal = mov.getDataNascimento().plus(periodoCarenciaRN, ChronoUnit.DAYS);
+    LocalDate lastDay = dataAdesaoValidaInicio;
+    while(!dataAdesaoValidaFinal.isBefore(lastDay)) {
+    	if (!dataAdesaoValidaList.contains(lastDay)) {
+    		dataAdesaoValidaList.add(lastDay);
+    	}
+        lastDay = lastDay.plus(1, ChronoUnit.DAYS);
+    }
+    System.out.println("Adesão buildDataAdesaoValidaListRN " + dataAdesaoValidaList);
+}
+
+function LocalDate getNextDate(LocalDate actualDate, int vigenciaDayOfMonth) {
+    LocalDate nextDate = actualDate.plusMonths(1);
+    try {
+        return nextDate.withDayOfMonth(vigenciaDayOfMonth);
+    } catch (DateTimeException e) {
+        return getLastDayOfMonth(nextDate, vigenciaDayOfMonth);
+    }
+}
+
+function LocalDate getLastDayOfMonth(LocalDate date, int vigenciaDayOfMonth) {
+    try {
+        return date.withDayOfMonth(vigenciaDayOfMonth - 1);
+    } catch (DateTimeException e) {
+        return getLastDayOfMonth(date, vigenciaDayOfMonth - 1);
+    }
+}
+
+function void test(){
+
+}

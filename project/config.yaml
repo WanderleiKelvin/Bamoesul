@@ -1,0 +1,30 @@
+# -------------------------------------------------------------------------------------- #
+version: 4.9.0
+recipe: javadm
+keepers: grp-monitora.emissao@sulamerica.com.br 
+
+log:
+  level: debug
+
+stages:
+  checkmarx:
+    active: true
+  # ----------------------------------------------------------------------------------- #
+  mvnPackage:
+    active: true
+  # ----------------------------------------------------------------------------------- # 
+  sonarReport:
+    active: true
+    exclusions: '**/site/jacoco/**/*'
+    coverage:
+      exclusions: '**/site/jacoco/**/*'
+    java:
+      binaries: target/classes
+  # ----------------------------------------------------------------------------------- #
+  sonarQualityGate:
+    active: false
+  # ----------------------------------------------------------------------------------- #  
+  deployDM:
+    active: true
+    type: legacy
+    provider: openshift

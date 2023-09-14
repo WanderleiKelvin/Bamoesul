@@ -1,0 +1,13 @@
+<org.uberfire.java.nio.base.Properties serialization="custom">
+  <unserializable-parents/>
+  <map>
+    <default>
+      <loadFactor>0.75</loadFactor>
+      <threshold>12</threshold>
+    </default>
+    <int>16</int>
+    <int>1</int>
+    <string>dcore.description[0]</string>
+    <string>Decision Table de entrada. Esta tabela irá preparar a movimentação para ser validada por resto das regras (Decision Table), gerando e setando valores calculados pelas regras de negócios conforme as características da movimentação. Os valores gerados são: período de isenção de carência, lista de data de adesão válida, flag de se a data for válida e flag de se gerar carência ou não. </string>
+  </map>
+</org.uberfire.java.nio.base.Properties>
