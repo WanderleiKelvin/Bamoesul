@@ -8,6 +8,10 @@
     <hideColumn>false</hideColumn>
     <width>183</width>
   </descriptionCol>
+  <ruleNameColumn>
+    <hideColumn>true</hideColumn>
+    <width>150</width>
+  </ruleNameColumn>
   <metadataCols/>
   <attributeCols>
     <attribute-column52>
@@ -59,6 +63,19 @@
       <hideColumn>false</hideColumn>
       <width>100</width>
       <attribute>date-expires</attribute>
+      <reverseOrder>false</reverseOrder>
+      <useRowNumber>false</useRowNumber>
+    </attribute-column52>
+    <attribute-column52>
+      <typedDefaultValue>
+        <valueBoolean>false</valueBoolean>
+        <valueString></valueString>
+        <dataType>BOOLEAN</dataType>
+        <isOtherwise>false</isOtherwise>
+      </typedDefaultValue>
+      <hideColumn>false</hideColumn>
+      <width>100</width>
+      <attribute>lock-on-active</attribute>
       <reverseOrder>false</reverseOrder>
       <useRowNumber>false</useRowNumber>
     </attribute-column52>
@@ -325,6 +342,7 @@ update(movi);</text>
     </imports>
   </imports>
   <packageName>br.com.sulamerica.dm.movvida.dm_movimentacoes_beneficiarios</packageName>
+  <version>739</version>
   <tableFormat>EXTENDED_ENTRY</tableFormat>
   <hitPolicy>FIRST_HIT</hitPolicy>
   <data>
@@ -333,6 +351,11 @@ update(movi);</text>
         <valueNumeric class="int">1</valueNumeric>
         <valueString></valueString>
         <dataType>NUMERIC_INTEGER</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
+        <valueString></valueString>
+        <dataType>STRING</dataType>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
@@ -360,6 +383,12 @@ update(movi);</text>
       <value>
         <valueString></valueString>
         <dataType>DATE</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
+        <valueBoolean>true</valueBoolean>
+        <valueString></valueString>
+        <dataType>BOOLEAN</dataType>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
@@ -428,6 +457,11 @@ update(movi);</text>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
+        <valueString></valueString>
+        <dataType>STRING</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
         <valueBoolean>true</valueBoolean>
         <valueString></valueString>
         <dataType>BOOLEAN</dataType>
@@ -447,6 +481,12 @@ update(movi);</text>
       <value>
         <valueString></valueString>
         <dataType>DATE</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
+        <valueBoolean>true</valueBoolean>
+        <valueString></valueString>
+        <dataType>BOOLEAN</dataType>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
@@ -510,6 +550,11 @@ update(movi);</text>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
+        <valueString></valueString>
+        <dataType>STRING</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
         <valueString>Padrao</valueString>
         <dataType>STRING</dataType>
         <isOtherwise>false</isOtherwise>
@@ -534,6 +579,12 @@ update(movi);</text>
       <value>
         <valueString></valueString>
         <dataType>DATE</dataType>
+        <isOtherwise>false</isOtherwise>
+      </value>
+      <value>
+        <valueBoolean>true</valueBoolean>
+        <valueString></valueString>
+        <dataType>BOOLEAN</dataType>
         <isOtherwise>false</isOtherwise>
       </value>
       <value>
